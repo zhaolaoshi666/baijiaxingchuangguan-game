@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>百家姓迷宫大冒险 - 华文文化探险</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: ZCOOL KuaiLe for Cartoon Vibe -->
+  <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background-color: #f0fdf4;
+    }
+    .font-cartoon {
+      font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
+    }
+    /* 百家姓文字水纹底纹 */
+    .bg-pattern {
+      background-color: #ecfdf5;
+      background-image: radial-gradient(#10b981 0.75px, transparent 0.75px), radial-gradient(#10b981 0.75px, #ecfdf5 0.75px);
+      background-size: 30px 30px;
+      background-position: 0 0, 15px 15px;
+      position: relative;
+    }
+    .bg-pattern::before {
+      content: "赵钱孙 李周吴 郑王冯 陈诸卫 蒋沈韩 杨朱秦 尤许何 吕施张 孔曹严 华金魏 陶姜戚 谢邹喻 柏水窦 章云苏 潘葛奚 范彭郎 鲁韦昌 马苗凤 花方俞 任袁柳";
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      font-size: 22px;
+      line-height: 40px;
+      color: rgba(16, 185, 129, 0.08);
+      word-break: break-all;
+      overflow: hidden;
+      pointer-events: none;
+      user-select: none;
+      padding: 10px;
+      font-family: 'ZCOOL KuaiLe', cursive;
+    }
+    /* 卡通阴影与边框效果 */
+    .cartoon-box {
+      border: 4px solid #065f46;
+      box-shadow: 0 8px 0 #065f46;
+      border-radius: 1.25rem;
+    }
+    .cartoon-btn {
+      border: 3px solid #065f46;
+      box-shadow: 0 5px 0 #065f46;
+      transition: all 0.1s ease;
+    }
+    .cartoon-btn:active:not(:disabled) {
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 #065f46;
+    }
+    /* 格子动画 */
+    .grid-node {
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .grid-node:hover:not(.locked) {
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body class="bg-pattern min-h-screen flex flex-col justify-between p-2 md:p-6 text-emerald-950">
+
+  <!-- 顶部状态栏 (Header Status Bar) -->
+  <header class="max-w-4xl w-full mx-auto bg-emerald-500/90 backdrop-blur cartoon-box p-4 mb-4 text-white z-10">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-cartoon tracking-wide flex items-center gap-2">
+          <span>🏰</span> 百家姓古堡大冒险
+        </h1>
+        <p class="text-xs md:text-sm text-emerald-100 font-bold">新加坡 P3 华文文化互动探险</p>
+      </div>
+
+      <!-- 心力值 (HP: 3点) -->
+      <div class="flex items-center gap-2 bg-emerald-700/80 px-4 py-2 rounded-xl border-2 border-emerald-900">
+        <span class="text-xs md:text-sm font-bold">心力值 (HP):</span>
+        <div id="hp-container" class="flex gap-1 text-xl">
+          <!-- 动态渲染 💖 💖 💖 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 实时关键词条点亮栏 -->
+    <div class="mt-3 pt-3 border-t border-emerald-400/50 flex flex-wrap items-center justify-between gap-2 text-xs md:text-sm">
+      <span class="font-bold text-emerald-100">必集齐解题关键：</span>
+      <div class="flex gap-2 font-cartoon text-sm">
+        <span id="key-0" class="px-3 py-1 bg-emerald-800/60 text-emerald-300 rounded-full border border-emerald-400/30">
+          🔒 基础排序与记忆
+        </span>
+        <span id="key-1" class="px-3 py-1 bg-emerald-800/60 text-emerald-300 rounded-full border border-emerald-400/30">
+          🔒 历史背景与常识
+        </span>
+        <span id="key-2" class="px-3 py-1 bg-emerald-800/60 text-emerald-300 rounded-full border border-emerald-400/30">
+          🔒 单姓与复姓
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主体内容区域：地图 + 交互面板 -->
+  <main class="max-w-4xl w-full mx-auto flex-1 grid grid-cols-1 md:grid-cols-12 gap-6 z-10 my-auto">
+    
+    <!-- 左侧：4x4 矩阵迷宫地图 -->
+    <div class="md:col-span-6 bg-white/90 backdrop-blur cartoon-box p-4 flex flex-col justify-center items-center">
+      <div class="w-full flex justify-between items-center mb-2 px-1">
+        <span class="text-xs font-bold text-emerald-700">🧭 点击已解锁的格子进行移动/闯关</span>
+        <span id="current-coord-tag" class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-mono font-bold">坐标: (0,0)</span>
+      </div>
+      
+      <!-- 4x4 Grid -->
+      <div id="maze-grid" class="grid grid-cols-4 gap-2.5 w-full aspect-square max-w-[360px]">
+        <!-- 动态生成 16 个格子 -->
+      </div>
+
+      <div class="mt-3 flex items-center justify-center gap-4 text-xs font-bold text-emerald-800">
+        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-emerald-400 rounded-full border border-emerald-700"></span>当前位置</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-amber-300 rounded-full border border-emerald-700"></span>已通关</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-white rounded-full border border-emerald-700"></span>可探索</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-slate-200 rounded-full border border-slate-400"></span>未解锁</span>
+      </div>
+    </div>
+
+    <!-- 右侧：答题与控制面板 -->
+    <div class="md:col-span-6 flex flex-col">
+      <div id="panel-card" class="bg-white/95 backdrop-blur cartoon-box p-5 flex-1 flex flex-col justify-between">
+        
+        <!-- 房间提示与题目 -->
+        <div id="question-area">
+          <div class="flex justify-between items-start mb-2">
+            <span id="room-category" class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-lg border border-emerald-300">
+              加载中...
+            </span>
+            <span id="room-title" class="text-xs text-slate-500 font-bold">房间 (0,0)</span>
+          </div>
+
+          <h2 id="question-text" class="text-base md:text-lg font-bold text-slate-800 mb-4 leading-relaxed">
+            请点击地图上的可用房间开始闯关！
+          </h2>
+
+          <!-- 选项列表 -->
+          <div id="options-container" class="space-y-2.5">
+            <!-- 选项动态插入 -->
+          </div>
+        </div>
+
+        <!-- 底部提示与暂缓闯关按钮 -->
+        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+          <p id="feedback-msg" class="text-xs md:text-sm font-bold text-amber-600 flex-1">
+            💡 选择答案点击闯关，答错会扣除心力哦！
+          </p>
+          <button id="defer-btn" onclick="deferQuestion()" class="hidden cartoon-btn bg-amber-400 hover:bg-amber-300 text-amber-950 font-cartoon text-sm px-4 py-2 rounded-xl">
+            ⏸️ 暂缓闯关
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- 模态弹窗：Game Over / 胜利 / 原路折返提示 -->
+  <div id="modal-overlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-white cartoon-box p-6 max-w-md w-full text-center relative animate-bounce-in">
+      <div id="modal-icon" class="text-6xl mb-2">🏆</div>
+      <h3 id="modal-title" class="text-2xl font-cartoon text-emerald-900 mb-2">结局标题</h3>
+      <p id="modal-body" class="text-sm md:text-base text-slate-600 mb-6 leading-relaxed">
+        结局详细内容说明...
+      </p>
+      <div id="modal-actions" class="flex justify-center gap-3">
+        <!-- 动态渲染操作按钮 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 页脚 -->
+  <footer class="text-center text-xs text-emerald-700/70 py-2 z-10 font-bold">
+    《百家姓》互动探险游戏 · 专为小学三年级华文学习设计
+  </footer>
+
+  <!-- 游戏逻辑 JS -->
+  <script>
+    // --- 音效资源引入 ---
+    // 答对使用专用的拍手鼓掌音效 👏
+    const correctSound = new Audio("https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3"); 
+    // 答错使用提示音效 🔔
+    const wrongSound = new Audio("https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8a73467.mp3");   
+
+    function playCorrectSound() {
+      correctSound.currentTime = 0;
+      correctSound.play().catch(e => console.log("音效播放受到限制:", e));
+    }
+
+    function playWrongSound() {
+      wrongSound.currentTime = 0;
+      wrongSound.play().catch(e => console.log("音效播放受到限制:", e));
+    }
+
+    // 16 道题目定义（严格匹配矩阵坐标 0,0 到 3,3）
+    const QUESTIONS = [
+      // 行 0 (0,0)-(0,3): 基础排序与记忆 (Key 0)
+      {
+        coord: [0,0], categoryIndex: 0, categoryName: "基础排序与记忆",
+        text: "《百家姓》开篇的第一句是什么？",
+        options: ["赵钱孙李", "周吴郑王", "冯陈诸卫"], answer: 0
+      },
+      {
+        coord: [0,1], categoryIndex: 0, categoryName: "基础排序与记忆",
+        text: "《百家姓》中，排在“李”之后的一个姓氏是？",
+        options: ["钱", "孙", "周"], answer: 2
+      },
+      {
+        coord: [0,2], categoryIndex: 0, categoryName: "基础排序与记忆",
+        text: "“周吴郑王”这一句中，排在最后的是哪个姓？",
+        options: ["周", "郑", "王"], answer: 2
+      },
+      {
+        coord: [0,3], categoryIndex: 0, categoryName: "基础排序与记忆",
+        text: "下列姓氏中，不属于《百家姓》开头前八个的是？",
+        options: ["钱", "孙", "冯"], answer: 2
+      },
+
+      // 行 1 (1,0)-(1,3): 基础排序与记忆 & 历史背景
+      {
+        coord: [1,0], categoryIndex: 0, categoryName: "基础排序与记忆",
+        text: "在“冯陈诸卫”这一句中，排在最前面的是哪个姓？",
+        options: ["冯", "陈", "卫"], answer: 0
+      },
+      {
+        coord: [1,1], categoryIndex: 0, categoryName: "基础排序与记忆",
+        text: "如果你的姓氏是“钱”，在书中它紧跟在哪个姓后面？",
+        options: ["赵", "孙", "李"], answer: 0
+      },
+      {
+        coord: [1,2], categoryIndex: 1, categoryName: "历史背景与常识",
+        text: "为什么“赵”姓会排在《百家姓》的第一位？",
+        options: ["笔画最少", "编写时宋朝皇帝姓赵", "抽签决定的"], answer: 1
+      },
+      {
+        coord: [1,3], categoryIndex: 1, categoryName: "历史背景与常识",
+        text: "《百家姓》大约是在哪个朝代编写的？",
+        options: ["唐朝", "宋朝", "清朝"], answer: 1
+      },
+
+      // 行 2 (2,0)-(2,3): 历史背景与常识 (Key 1)
+      {
+        coord: [2,0], categoryIndex: 1, categoryName: "历史背景与常识",
+        text: "《百家姓》里真的只有一百个姓氏吗？",
+        options: ["刚好一百个", "不止一百个(有数百个)", "只有五十个"], answer: 1
+      },
+      {
+        coord: [2,1], categoryIndex: 1, categoryName: "历史背景与常识",
+        text: "《百家姓》与哪两本书并称为古代必读的“三百千”？",
+        options: ["《论语》《孟子》", "《三字经》《千字文》", "《唐诗》《宋词》"], answer: 1
+      },
+      {
+        coord: [2,2], categoryIndex: 1, categoryName: "历史背景与常识",
+        text: "古代小朋友学习《百家姓》的主要目的是什么？",
+        options: ["识字认字", "练习书法", "学习做饭"], answer: 0
+      },
+      {
+        coord: [2,3], categoryIndex: 1, categoryName: "历史背景与常识",
+        text: "《百家姓》采用几言一组的形式，读起来朗朗上口？",
+        options: ["三言", "四言", "五言"], answer: 1
+      },
+
+      // 行 3 (3,0)-(3,3): 单姓与复姓 (Key 2)
+      {
+        coord: [3,0], categoryIndex: 1, categoryName: "历史背景与常识",
+        text: "《百家姓》最后一句“百家姓终”表达了什么意思？",
+        options: ["全书结束", "大家都没有姓氏了", "故事刚开始"], answer: 0
+      },
+      {
+        coord: [3,1], categoryIndex: 2, categoryName: "单姓与复姓",
+        text: "像“欧阳”、“司马”这样由两个字组成的姓氏称为什么？",
+        options: ["双姓", "复合姓", "复姓"], answer: 2
+      },
+      {
+        coord: [3,2], categoryIndex: 2, categoryName: "单姓与复姓",
+        text: "下列哪一个是复姓？",
+        options: ["诸葛", "郑", "卫"], answer: 0
+      },
+      {
+        coord: [3,3], categoryIndex: 2, categoryName: "单姓与复姓",
+        text: "【终点站】下列哪一组全部都是复姓？",
+        options: ["张三、李四", "东方、上官", "王二、刘一"], answer: 1
+      }
+    ];
+
+    const KEY_NAMES = ["基础排序与记忆", "历史背景与常识", "单姓与复姓"];
+
+    // 游戏全局状态管理 (3 点心力)
+    let gameState = {
+      hp: 3,
+      maxHp: 3,
+      currentCoord: [0, 0],
+      unlockedCoords: ["0,0"],
+      completedCoords: [],
+      collectedKeys: [false, false, false],
+      wrongAttempts: {} // 记录每格已选错的选项，防止重复扣血
+    };
+
+    // 初始化运行
+    window.onload = function() {
+      initGame();
+    };
+
+    function initGame() {
+      gameState = {
+        hp: 3,
+        maxHp: 3,
+        currentCoord: [0, 0],
+        unlockedCoords: ["0,0"],
+        completedCoords: [],
+        collectedKeys: [false, false, false],
+        wrongAttempts: {}
+      };
+      renderHP();
+      updateKeysUI();
+      renderMazeGrid();
+      loadRoom(0, 0);
+      closeModal();
+    }
+
+    // 渲染心力值 (3 点)
+    function renderHP() {
+      const container = document.getElementById("hp-container");
+      container.innerHTML = "";
+      for (let i = 0; i < gameState.maxHp; i++) {
+        const heart = document.createElement("span");
+        heart.textContent = i < gameState.hp ? "💖" : "🖤";
+        container.appendChild(heart);
+      }
+    }
+
+    // 实时更新“解题关键”词条UI
+    function updateKeysUI() {
+      const categoriesFound = [false, false, false];
+      gameState.completedCoords.forEach(key => {
+        const [r, c] = key.split(',').map(Number);
+        const q = QUESTIONS.find(item => item.coord[0] === r && item.coord[1] === c);
+        if (q) categoriesFound[q.categoryIndex] = true;
+      });
+
+      gameState.collectedKeys = categoriesFound;
+
+      categoriesFound.forEach((isCollected, idx) => {
+        const el = document.getElementById(`key-${idx}`);
+        if (isCollected) {
+          el.className = "px-3 py-1 bg-amber-400 text-amber-950 font-bold rounded-full border border-amber-200 shadow-sm animate-pulse";
+          el.textContent = `✨ ${KEY_NAMES[idx]}`;
+        } else {
+          el.className = "px-3 py-1 bg-emerald-800/60 text-emerald-300 rounded-full border border-emerald-400/30";
+          el.textContent = `🔒 ${KEY_NAMES[idx]}`;
+        }
+      });
+    }
+
+    // 渲染 4x4 迷宫地图
+    function renderMazeGrid() {
+      const gridContainer = document.getElementById("maze-grid");
+      gridContainer.innerHTML = "";
+
+      for (let r = 0; r < 4; r++) {
+        for (let c = 0; c < 4; c++) {
+          const coordKey = `${r},${c}`;
+          const isCurrent = gameState.currentCoord[0] === r && gameState.currentCoord[1] === c;
+          const isCompleted = gameState.completedCoords.includes(coordKey);
+          const isUnlocked = gameState.unlockedCoords.includes(coordKey);
+
+          const btn = document.createElement("button");
+          btn.className = `grid-node cartoon-btn rounded-2xl flex flex-col items-center justify-center relative font-cartoon text-xs md:text-sm p-1 `;
+
+          if (isCurrent) {
+            btn.classList.add("bg-emerald-400", "text-emerald-950", "ring-4", "ring-emerald-300", "z-10");
+          } else if (isCompleted) {
+            btn.classList.add("bg-amber-300", "text-amber-950");
+          } else if (isUnlocked) {
+            btn.classList.add("bg-white", "text-emerald-800", "hover:bg-emerald-50");
+          } else {
+            btn.classList.add("bg-slate-200", "text-slate-400", "border-slate-300", "locked", "cursor-not-allowed");
+          }
+
+          let icon = "🔒";
+          if (r === 0 && c === 0) icon = "🚩";
+          if (r === 3 && c === 3) icon = "🏆";
+          if (isCompleted) icon = "✅";
+          if (isCurrent) icon = "🧐";
+
+          btn.innerHTML = `
+            <span class="text-base md:text-xl">${icon}</span>
+            <span class="font-mono text-[10px] opacity-80">(${r},${c})</span>
+          `;
+
+          if (isUnlocked) {
+            btn.onclick = () => moveToRoom(r, c);
+          } else {
+            btn.disabled = true;
+          }
+
+          gridContainer.appendChild(btn);
+        }
+      }
+    }
+
+    // 切换到指定房间
+    function moveToRoom(r, c) {
+      gameState.currentCoord = [r, c];
+      document.getElementById("current-coord-tag").textContent = `坐标: (${r},${c})`;
+      renderMazeGrid();
+      loadRoom(r, c);
+    }
+
+    // 加载房间题目与面板内容
+    function loadRoom(r, c) {
+      const coordKey = `${r},${c}`;
+      const q = QUESTIONS.find(item => item.coord[0] === r && item.coord[1] === c);
+      
+      const categoryTag = document.getElementById("room-category");
+      const titleTag = document.getElementById("room-title");
+      const qText = document.getElementById("question-text");
+      const optsContainer = document.getElementById("options-container");
+      const deferBtn = document.getElementById("defer-btn");
+      const feedback = document.getElementById("feedback-msg");
+
+      titleTag.textContent = `房间 (${r},${c})`;
+      categoryTag.textContent = `分类：${q.categoryName}`;
+      qText.textContent = q.text;
+
+      optsContainer.innerHTML = "";
+      feedback.textContent = "💡 请点击合适选项进行闯关：";
+      feedback.className = "text-xs md:text-sm font-bold text-emerald-700 flex-1";
+
+      const isCompleted = gameState.completedCoords.includes(coordKey);
+      const wrongList = gameState.wrongAttempts[coordKey] || [];
+
+      q.options.forEach((optText, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "w-full text-left p-3 rounded-xl border-2 font-bold text-sm transition-all cartoon-btn flex items-center justify-between ";
+
+        if (isCompleted) {
+          if (idx === q.answer) {
+            btn.classList.add("bg-emerald-100", "border-emerald-500", "text-emerald-900");
+            btn.innerHTML = `<span>${optText}</span> <span>正确✅</span>`;
+          } else {
+            btn.classList.add("bg-slate-100", "border-slate-200", "text-slate-400");
+            btn.innerHTML = `<span>${optText}</span>`;
+          }
+          btn.disabled = true;
+        } else if (wrongList.includes(idx)) {
+          btn.classList.add("bg-rose-50", "border-rose-200", "text-rose-400", "cursor-not-allowed");
+          btn.innerHTML = `<span>${optText}</span> <span class="text-xs">已排除❌</span>`;
+          btn.disabled = true;
+        } else {
+          btn.classList.add("bg-emerald-50/50", "border-emerald-300", "hover:bg-emerald-100", "text-emerald-950");
+          btn.innerHTML = `<span>${optText}</span>`;
+          btn.onclick = () => submitAnswer(r, c, idx, q.answer);
+        }
+
+        optsContainer.appendChild(btn);
+      });
+
+      if (!isCompleted && (r !== 0 || c !== 0)) {
+        deferBtn.classList.remove("hidden");
+      } else {
+        deferBtn.classList.add("hidden");
+      }
+    }
+
+    // 提交答案判定
+    function submitAnswer(r, c, selectedIdx, correctIdx) {
+      const coordKey = `${r},${c}`;
+      const feedback = document.getElementById("feedback-msg");
+
+      if (selectedIdx === correctIdx) {
+        // 答对：播放拍手音效 👏
+        playCorrectSound();
+
+        feedback.textContent = "🎉 回答正确！解锁新区域通道！";
+        feedback.className = "text-xs md:text-sm font-bold text-emerald-600 flex-1";
+
+        if (!gameState.completedCoords.includes(coordKey)) {
+          gameState.completedCoords.push(coordKey);
+        }
+
+        unlockNeighbors(r, c);
+        updateKeysUI();
+        renderMazeGrid();
+
+        loadRoom(r, c);
+
+        if (r === 3 && c === 3) {
+          checkEndGameCondition();
+        }
+
+      } else {
+        // 答错：播放提示音效 🔔
+        playWrongSound();
+
+        if (!gameState.wrongAttempts[coordKey]) {
+          gameState.wrongAttempts[coordKey] = [];
+        }
+        gameState.wrongAttempts[coordKey].push(selectedIdx);
+
+        gameState.hp -= 1;
+        renderHP();
+
+        feedback.textContent = "❌ 闯关有误，心力值 -1！该选项已为你排除。";
+        feedback.className = "text-xs md:text-sm font-bold text-rose-600 flex-1 animate-bounce";
+
+        loadRoom(r, c);
+
+        if (gameState.hp <= 0) {
+          triggerGameOver();
+        }
+      }
+    }
+
+    // 解锁上下左右邻近格
+    function unlockNeighbors(r, c) {
+      const neighbors = [
+        [r - 1, c], [r + 1, c],
+        [r, c - 1], [r, c + 1]
+      ];
+
+      neighbors.forEach(([nr, nc]) => {
+        if (nr >= 0 && nr < 4 && nc >= 0 && nc < 4) {
+          const key = `${nr},${nc}`;
+          if (!gameState.unlockedCoords.includes(key)) {
+            gameState.unlockedCoords.push(key);
+          }
+        }
+      });
+    }
+
+    // 暂缓闯关功能
+    function deferQuestion() {
+      const feedback = document.getElementById("feedback-msg");
+      feedback.textContent = "⏸️ 已暂缓闯关，请在地图上选择其他已解锁的房间。";
+      feedback.className = "text-xs md:text-sm font-bold text-amber-600 flex-1";
+    }
+
+    // 终点 (3,3) 触发检测与折返机制
+    function checkEndGameCondition() {
+      const allKeysCollected = gameState.collectedKeys.every(k => k === true);
+
+      if (allKeysCollected) {
+        showModal(
+          "🎉 完美通关！",
+          "恭喜你通关“百家姓迷宫大冒险”！你成功破解了所有谜题，集齐了【基础排序与记忆】、【历史背景与常识】与【单姓与复姓】三大解题关键，获得了‘百家姓小达人’勋章！",
+          "🏆",
+          `<button onclick="initGame()" class="cartoon-btn bg-emerald-500 hover:bg-emerald-400 text-white font-cartoon px-6 py-2 rounded-xl">再玩一次</button>`
+        );
+      } else {
+        const missing = [];
+        if (!gameState.collectedKeys[0]) missing.push("【基础排序与记忆】");
+        if (!gameState.collectedKeys[1]) missing.push("【历史背景与常识】");
+        if (!gameState.collectedKeys[2]) missing.push("【单姓与复姓】");
+
+        showModal(
+          "🤔 尚未完全领悟！",
+          `你虽然到达了终点，但尚未集齐必要的解题关键：${missing.join("、")}。请原路折返，探索未闯关的房间！`,
+          "🗺️",
+          `<button onclick="closeModal()" class="cartoon-btn bg-amber-400 hover:bg-amber-300 text-amber-950 font-cartoon px-6 py-2 rounded-xl">↩️ 原路折返探索</button>`
+        );
+      }
+    }
+
+    // 闯关失败结局 (Game Over)
+    function triggerGameOver() {
+      showModal(
+        "💔 闯关失败",
+        "你的 3 点心力值已耗尽！古堡的迷雾笼罩了四周。别担心，再试一次，你一定会对《百家姓》掌握得更好！",
+        "👻",
+        `<button onclick="initGame()" class="cartoon-btn bg-rose-500 hover:bg-rose-400 text-white font-cartoon px-6 py-2 rounded-xl">🔄 重新开始挑战</button>`
+      );
+    }
+
+    function showModal(title, body, icon, actionBtnsHTML) {
+      document.getElementById("modal-title").textContent = title;
+      document.getElementById("modal-body").textContent = body;
+      document.getElementById("modal-icon").textContent = icon;
+      document.getElementById("modal-actions").innerHTML = actionBtnsHTML;
+      document.getElementById("modal-overlay").classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("modal-overlay").classList.add("hidden");
+    }
+  </script>
+</body>
+</html>
